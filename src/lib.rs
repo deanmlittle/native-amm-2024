@@ -2,6 +2,7 @@ mod instructions;
 use instructions::*;
 
 mod state;
+use spl_token_2022::extension::confidential_transfer::instruction::deposit;
 use state::*;
 
 #[cfg(test)]
@@ -36,9 +37,9 @@ pub fn process_instruction(
         .ok_or(ProgramError::InvalidInstructionData)?;
 
     match EscrowInstructions::try_from(discriminator)? {
-        EscrowInstructions::Initialize => make::process(accounts, data),
-        EscrowInstructions::Deposit => take::process(accounts),
-        EscrowInstructions::Withdraw => refund::process(accounts),
+        EscrowInstructions::Initialize => initialize::process(accounts, data),
+        EscrowInstructions::Deposit => deposit::process(accounts, data),
+        EscrowInstructions::Withdraw => withdraw::process(accounts, data),
         EscrowInstructions::Swap => swap::process(accounts, data),
         EscrowInstructions::Lock => lock::process(accounts, data),
     }

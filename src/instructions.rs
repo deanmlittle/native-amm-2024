@@ -1,4 +1,5 @@
 use bytemuck::{Pod, Zeroable};
+use native_amm_macros::TryFromBytes;
 use solana_program::program_error::ProgramError;
 pub enum EscrowInstructions {
     Initialize,
@@ -27,17 +28,17 @@ impl TryFrom<&u8> for EscrowInstructions {
 
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Pod, Zeroable, TryFromBytes)]
-pub struct Make {
-    pub seed: u64,
-    pub amount: u64,
-    pub receive: u64,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, Pod, Zeroable, TryFromBytes)]
 pub struct Deposit {
     amount: u64, // Amount of LP token to claim
     max_x: u64, // Max amount of X we are willing to deposit
     max_y: u64, // Max amount of Y we are willing to deposit
     expiration: i64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq, Pod, Zeroable, TryFromBytes)]
+pub struct Swap {
+    amount: u64, // Amount of tokens we deposit
+    min: u64, // Minimum amount of tokens I'd be willing to withdraw
+    expiration: i64
 }
