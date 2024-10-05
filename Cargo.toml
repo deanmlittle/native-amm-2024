@@ -10,7 +10,7 @@ crate-type = ["cdylib", "lib"]
 name = "native_escrow_2024"
 
 [dependencies]
-native_amm_macros = { path = "./crates/native-amm-macros" }
+native-amm-macros = { path = "./crates/native-amm-macros" }
 bytemuck = { version = "1.18.0", features = ["derive", "const_zeroed"]}
 solana-program = "2.0.10"
 spl-token = { version = "6.0.0", features = ["no-entrypoint"] }

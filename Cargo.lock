@@ -1401,11 +1401,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "native-amm-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "native-escrow-2024"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
  "mollusk-svm",
+ "native-amm-macros",
  "solana-program",
  "solana-sdk",
  "spl-associated-token-account",

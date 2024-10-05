@@ -26,19 +26,18 @@ impl TryFrom<&u8> for EscrowInstructions {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, Pod, Zeroable)]
+#[derive(Clone, Copy, PartialEq, Eq, Pod, Zeroable, TryFromBytes)]
 pub struct Make {
     pub seed: u64,
     pub amount: u64,
     pub receive: u64,
 }
 
-impl TryFrom<&[u8]> for Make {
-    
-    type Error = ProgramError;
-    
-    fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
-        bytemuck::try_pod_read_unaligned::<Self>(data)
-            .map_err(|_| ProgramError::InvalidInstructionData)
-    }
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq, Pod, Zeroable, TryFromBytes)]
+pub struct Deposit {
+    amount: u64, // Amount of LP token to claim
+    max_x: u64, // Max amount of X we are willing to deposit
+    max_y: u64, // Max amount of Y we are willing to deposit
+    expiration: i64,
 }
