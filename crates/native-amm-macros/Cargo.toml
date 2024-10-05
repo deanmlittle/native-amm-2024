@@ -1,0 +1,18 @@
+[package]
+name = "native-escrow-macros"
+authors = ["Dean Little <@deanmlittle>", "Leo <@l0ste>"]
+license = "MIT"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "native_amm_2024"
+
+[dependencies]
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
+proc-macro2 = "1.0"
+
+[lib]
+proc-macro = true
