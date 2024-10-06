@@ -65,7 +65,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     )?;
 
     let vault_x_account = spl_token::state::Account::unpack(mint_x.data.borrow().as_ref())?;
-    let vault_y_account = spl_token::state::Account::unpack(mint_x.data.borrow().as_ref())?;
+    let vault_y_account = spl_token::state::Account::unpack(mint_y.data.borrow().as_ref())?;
 
     let mint_x_decimals = Mint::unpack(mint_x.data.borrow().as_ref())?.decimals;
     let mint_y_decimals = Mint::unpack(mint_y.data.borrow().as_ref())?.decimals;
