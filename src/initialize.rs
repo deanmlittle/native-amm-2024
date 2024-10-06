@@ -42,7 +42,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     let y_bump = check_eq_program_derived_address_and_get_bump(
         &[mint_y.key.as_ref(), config.key.as_ref()],
         &crate::ID,
-        vault_x.key,
+        vault_y.key,
     )?;
 
     let lp_bump = check_eq_program_derived_address_and_get_bump(
@@ -100,44 +100,40 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     let token_space = core::mem::size_of::<spl_token::state::Account>();
     let token_rent = Rent::get()?.minimum_balance(token_space);
 
-    invoke_signed(
-        &create_account(
-            initializer.key,
-            vault_x.key,
-            token_rent,
-            token_space as u64,
-            &crate::ID,
-        ),
-        &[initializer.clone(), vault_x.clone()],
-        &[&[mint_x.key.as_ref(), config.key.as_ref(), &[x_bump]]],
-    )?;
+    // invoke_signed(
+    //     &create_account(
+    //         initializer.key,
+    //         vault_x.key,
+    //         token_rent,
+    //         token_space as u64,
+    //         &crate::ID,
+    //     ),
+    //     &[initializer.clone(), vault_x.clone()],
+    //     &[&[mint_x.key.as_ref(), config.key.as_ref(), &[x_bump]]],
+    // )?;
 
-    vault_x.assign(&token_program.key);
-
-    invoke(
-        &initialize_account3(token_program.key, vault_x.key, mint_x.key, config.key)?,
-        &[vault_x.clone(), mint_x.clone()],
-    )?;
+    // invoke(
+    //     &initialize_account3(token_program.key, vault_x.key, mint_x.key, config.key)?,
+    //     &[vault_x.clone(), mint_x.clone()],
+    // )?;
 
     // Create the token_account_y
-    invoke_signed(
-        &create_account(
-            initializer.key,
-            vault_y.key,
-            token_rent,
-            token_space as u64,
-            &crate::ID,
-        ),
-        &[initializer.clone(), vault_y.clone()],
-        &[&[mint_x.key.as_ref(), config.key.as_ref(), &[y_bump]]],
-    )?;
+    // invoke_signed(
+    //     &create_account(
+    //         initializer.key,
+    //         vault_y.key,
+    //         token_rent,
+    //         token_space as u64,
+    //         &crate::ID,
+    //     ),
+    //     &[initializer.clone(), vault_y.clone()],
+    //     &[&[mint_y.key.as_ref(), config.key.as_ref(), &[y_bump]]],
+    // )?;
 
-    vault_y.assign(&token_program.key);
-
-    invoke(
-        &initialize_account3(token_program.key, vault_y.key, mint_y.key, config.key)?,
-        &[vault_y.clone(), mint_y.clone()],
-    )?;
+    // invoke(
+    //     &initialize_account3(token_program.key, vault_y.key, mint_y.key, config.key)?,
+    //     &[vault_y.clone(), mint_y.clone()],
+    // )?;
 
     // Create the lp_mint
     let mint_space = core::mem::size_of::<spl_token::state::Mint>();
@@ -154,8 +150,6 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         &[initializer.clone(), mint_lp.clone()],
         &[&[config.key.as_ref(), &[lp_bump]]],
     )?;
-
-    mint_lp.assign(&token_program.key);
 
     invoke(
         &initialize_mint2(token_program.key, mint_lp.key, config.key, None, 6)?,
