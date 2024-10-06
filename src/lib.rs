@@ -8,11 +8,12 @@ use state::*;
 #[cfg(test)]
 mod tests;
 
+mod deposit;
 mod initialize;
-// mod deposit;
-// mod withdraw;
-// mod swap;
-// mod lock;
+mod lock;
+mod swap;
+mod utils;
+mod withdraw;
 
 use solana_program::{
     account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, program_error::ProgramError,
@@ -36,11 +37,11 @@ pub fn process_instruction(
         .split_first()
         .ok_or(ProgramError::InvalidInstructionData)?;
 
-    match EscrowInstructions::try_from(discriminator)? {
-        EscrowInstructions::Initialize => initialize::process(accounts, data),
-        EscrowInstructions::Deposit => deposit::process(accounts, data),
-        EscrowInstructions::Withdraw => withdraw::process(accounts, data),
-        EscrowInstructions::Swap => swap::process(accounts, data),
-        EscrowInstructions::Lock => lock::process(accounts, data),
+    match AMMInstructions::try_from(discriminator)? {
+        AMMInstructions::Initialize => initialize::process(accounts, data),
+        AMMInstructions::Deposit => deposit::process(accounts, data),
+        AMMInstructions::Withdraw => withdraw::process(accounts, data),
+        AMMInstructions::Swap => swap::process(accounts, data),
+        AMMInstructions::Lock => lock::process(accounts, data),
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "native-escrow-2024"
-authors = ["Dean Little <@deanmlittle>", "Leonardo Donatacci <@l0ste>"]
+authors = ["Dean Little <@deanmlittle>", "Leonardo Donatacci <@L0STE>"]
 license = "MIT"
 version = "0.1.0"
 edition = "2021"
@@ -11,6 +11,7 @@ name = "native_escrow_2024"
 
 [dependencies]
 native-amm-macros = { path = "./crates/native-amm-macros" }
+constant-product-curve = { path = "./crates/constant-product-curve" }
 bytemuck = { version = "1.18.0", features = ["derive", "const_zeroed"]}
 solana-program = "2.0.10"
 spl-token = { version = "6.0.0", features = ["no-entrypoint"] }

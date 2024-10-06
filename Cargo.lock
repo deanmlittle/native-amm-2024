@@ -572,6 +572,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "constant-product-curve"
+version = "0.1.0"
+
+[[package]]
 name = "constant_time_eq"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1414,6 +1418,7 @@ name = "native-escrow-2024"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "constant-product-curve",
  "mollusk-svm",
  "native-amm-macros",
  "solana-program",
