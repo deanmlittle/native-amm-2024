@@ -3,10 +3,19 @@ use constant_product_curve::{
     delta_x_from_y_swap_amount_with_fee, delta_y_from_x_swap_amount_with_fee,
 };
 use solana_program::{
-    account_info::AccountInfo, clock::Clock, entrypoint::ProgramResult,
-    program_error::ProgramError, program_pack::Pack, sysvar::Sysvar, pubkey::Pubkey, program::{invoke, invoke_signed},
+    account_info::AccountInfo,
+    clock::Clock,
+    entrypoint::ProgramResult,
+    program::{invoke, invoke_signed},
+    program_error::ProgramError,
+    program_pack::Pack,
+    pubkey::Pubkey,
+    sysvar::Sysvar,
 };
-use spl_token::{instruction::transfer_checked, state::{GenericTokenAccount, Mint}};
+use spl_token::{
+    instruction::transfer_checked,
+    state::{GenericTokenAccount, Mint},
+};
 
 pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     let Swap {
@@ -34,6 +43,9 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     assert_eq!(config.owner, &crate::ID);
     let config_account = Config::try_from(config.data.borrow().as_ref())?;
 
+    // Assert pool isn't locked
+    assert_ne!(config_account.locked, 1);
+
     // Generate our vault seeds
     let seeds_x: &[&[u8]] = &[
         config_account.mint_x.as_ref(),
@@ -60,10 +72,12 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     let mint_y_decimals = Mint::unpack(mint_y.data.borrow().as_ref())?.decimals;
 
     // No need for additional checks as token transfer will fail for an invalid mint
-    let is_x = config_account
-        .mint_x
-        .eq(<spl_token::state::Account as GenericTokenAccount>::unpack_account_mint(user_from.data.borrow().as_ref())
-            .ok_or(ProgramError::InvalidAccountData)?);
+    let is_x = config_account.mint_x.eq(
+        <spl_token::state::Account as GenericTokenAccount>::unpack_account_mint(
+            user_from.data.borrow().as_ref(),
+        )
+        .ok_or(ProgramError::InvalidAccountData)?,
+    );
 
     // Execute our swap
     if is_x {
@@ -73,7 +87,8 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             vault_y_account.amount,
             amount,
             config_account.fee,
-        ).map_err(|_| ProgramError::ArithmeticOverflow)?;
+        )
+        .map_err(|_| ProgramError::ArithmeticOverflow)?;
 
         // Slippage check
         assert!(amount_out >= min);
@@ -105,7 +120,8 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             vault_y_account.amount,
             amount,
             config_account.fee,
-        ).map_err(|_| ProgramError::ArithmeticOverflow)?;
+        )
+        .map_err(|_| ProgramError::ArithmeticOverflow)?;
 
         // Slippage check
         assert!(amount_out >= min);

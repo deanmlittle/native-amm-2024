@@ -1,10 +1,19 @@
 use crate::{utils::check_eq_program_derived_address_with_bump, Config, Deposit};
 use constant_product_curve::xy_deposit_amounts_from_l;
 use solana_program::{
-    account_info::AccountInfo, clock::Clock, sysvar::Sysvar, entrypoint::ProgramResult,
-    program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, program::{invoke, invoke_signed},
+    account_info::AccountInfo,
+    clock::Clock,
+    entrypoint::ProgramResult,
+    program::{invoke, invoke_signed},
+    program_error::ProgramError,
+    program_pack::Pack,
+    pubkey::Pubkey,
+    sysvar::Sysvar,
 };
-use spl_token::{instruction::{mint_to_checked, transfer_checked}, state::Mint};
+use spl_token::{
+    instruction::{mint_to_checked, transfer_checked},
+    state::Mint,
+};
 
 pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     let Deposit {
@@ -32,6 +41,9 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     // Assert we own config
     assert_eq!(config.owner, &crate::ID);
     let config_account = Config::try_from(config.data.borrow().as_ref())?;
+
+    // Assert pool isn't locked
+    assert_ne!(config_account.locked, 1);
 
     // Check LP mint
     check_eq_program_derived_address_with_bump(

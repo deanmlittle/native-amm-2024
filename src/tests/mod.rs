@@ -1,3 +1,4 @@
+use crate::{Config, Deposit, Initialize};
 use bytemuck::bytes_of;
 use core::mem;
 use mollusk_svm::{
@@ -5,17 +6,11 @@ use mollusk_svm::{
     result::ProgramResult,
     Mollusk,
 };
-use solana_program::instruction::AccountMeta;
-use solana_sdk::{
-    account::{AccountSharedData, WritableAccount},
-    instruction::Instruction,
-    program_option::COption,
-    program_pack::Pack,
-    pubkey::Pubkey,
+use solana_program::{
+    clock::Clock, instruction::AccountMeta, instruction::Instruction, program_option::COption,
+    program_pack::Pack, pubkey::Pubkey, sysvar::Sysvar,
 };
-use spl_token::state::AccountState;
-
-use crate::{Config, Initialize};
+use solana_sdk::account::{AccountSharedData, WritableAccount};
 
 #[test]
 fn initialize() {
@@ -144,10 +139,16 @@ fn deposit() {
     let initializer = Pubkey::new_from_array([0x01; 32]);
     let mint_x = Pubkey::new_from_array([0x02; 32]);
     let mint_y = Pubkey::new_from_array([0x03; 32]);
-    let config = Pubkey::find_program_address(&[b"config", &seed.to_le_bytes()], &crate::ID).0;
-    let mint_lp = Pubkey::find_program_address(&[config.as_ref()], &crate::ID).0;
-    let vault_x = Pubkey::find_program_address(&[mint_x.as_ref(), config.as_ref()], &crate::ID).0;
-    let vault_y = Pubkey::find_program_address(&[mint_y.as_ref(), config.as_ref()], &crate::ID).0;
+    let user_x = Pubkey::new_from_array([0x04; 32]);
+    let user_y = Pubkey::new_from_array([0x05; 32]);
+    let user_lp = Pubkey::new_from_array([0x06; 32]);
+    let (config, config_bump) =
+        Pubkey::find_program_address(&[b"config", &seed.to_le_bytes()], &crate::ID);
+    let (mint_lp, lp_bump) = Pubkey::find_program_address(&[config.as_ref()], &crate::ID);
+    let (vault_x, x_bump) =
+        Pubkey::find_program_address(&[mint_x.as_ref(), config.as_ref()], &crate::ID);
+    let (vault_y, y_bump) =
+        Pubkey::find_program_address(&[mint_y.as_ref(), config.as_ref()], &crate::ID);
 
     // Fill out our account data
     let mut mint_x_account = AccountSharedData::new(
@@ -256,17 +257,145 @@ fn deposit() {
     )
     .unwrap();
 
+    let mut user_x_account = AccountSharedData::new(
+        mollusk
+            .sysvars
+            .rent
+            .minimum_balance(spl_token::state::Account::LEN),
+        spl_token::state::Account::LEN,
+        &token_program,
+    );
+    solana_program::program_pack::Pack::pack(
+        spl_token::state::Account {
+            mint: mint_x,
+            owner: user_x,
+            amount: 1_000_000,
+            delegate: COption::None,
+            state: spl_token::state::AccountState::Initialized,
+            is_native: COption::None,
+            delegated_amount: 0,
+            close_authority: COption::None,
+        },
+        user_x_account.data_as_mut_slice(),
+    )
+    .unwrap();
+
+    let mut user_y_account = AccountSharedData::new(
+        mollusk
+            .sysvars
+            .rent
+            .minimum_balance(spl_token::state::Account::LEN),
+        spl_token::state::Account::LEN,
+        &token_program,
+    );
+    solana_program::program_pack::Pack::pack(
+        spl_token::state::Account {
+            mint: mint_y,
+            owner: user_y,
+            amount: 1_000_000,
+            delegate: COption::None,
+            state: spl_token::state::AccountState::Initialized,
+            is_native: COption::None,
+            delegated_amount: 0,
+            close_authority: COption::None,
+        },
+        user_y_account.data_as_mut_slice(),
+    )
+    .unwrap();
+
+    let mut user_lp_account = AccountSharedData::new(
+        mollusk
+            .sysvars
+            .rent
+            .minimum_balance(spl_token::state::Account::LEN),
+        spl_token::state::Account::LEN,
+        &token_program,
+    );
+    solana_program::program_pack::Pack::pack(
+        spl_token::state::Account {
+            mint: mint_lp,
+            owner: user_lp,
+            amount: 0,
+            delegate: COption::None,
+            state: spl_token::state::AccountState::Initialized,
+            is_native: COption::None,
+            delegated_amount: 0,
+            close_authority: COption::None,
+        },
+        user_lp_account.data_as_mut_slice(),
+    )
+    .unwrap();
+
     let mut config_account = AccountSharedData::new(
         mollusk
             .sysvars
             .rent
-            .minimum_balance(crate::state::Config::LEN),
-        crate::state::Config::LEN,
+            .minimum_balance(mem::size_of::<Config>()),
+        mem::size_of::<Config>(),
         &crate::ID,
     );
-    solana_program::program_pack::Pack::pack(
-        Config {
+    config_account.set_data_from_slice(bytes_of::<Config>(&Config {
+        seed,
+        authority: crate::ID,
+        mint_x,
+        mint_y,
+        fee: 100u16,
+        locked: 0,
+        config_bump,
+        lp_bump,
+        x_bump,
+        y_bump,
+        padding: [0],
+    }));
 
-        },
-        config_account.data_as_mut_slice(),
-    )
+    // Create our instruction
+    let instruction = Instruction::new_with_bytes(
+        crate::ID,
+        bytes_of::<Deposit>(&Deposit {
+            amount: 1_000_000,
+            max_x: 1_000_000,
+            max_y: 1_000_000,
+            expiration: Clock::get()
+                .unwrap()
+                .unix_timestamp
+                .checked_add(100_000)
+                .unwrap(),
+        }),
+        vec![
+            AccountMeta::new(initializer, true),
+            AccountMeta::new_readonly(mint_x, false),
+            AccountMeta::new_readonly(mint_y, false),
+            AccountMeta::new_readonly(mint_lp, false),
+            AccountMeta::new(user_x, false),
+            AccountMeta::new(user_y, false),
+            AccountMeta::new(user_lp, false),
+            AccountMeta::new_readonly(vault_x, false),
+            AccountMeta::new_readonly(vault_y, false),
+            AccountMeta::new_readonly(config, false),
+            AccountMeta::new_readonly(token_program, false),
+            AccountMeta::new_readonly(system_program, false),
+        ],
+    );
+
+    let result: mollusk_svm::result::InstructionResult = mollusk.process_instruction(
+        &instruction,
+        &vec![
+            (
+                initializer,
+                AccountSharedData::new(1_000_000_000, 0, &Pubkey::default()),
+            ),
+            (mint_x, mint_x_account),
+            (mint_y, mint_y_account),
+            (mint_lp, mint_lp_account),
+            (user_x, user_x_account),
+            (user_y, user_y_account),
+            (user_lp, user_lp_account),
+            (vault_x, vault_x_account),
+            (vault_y, vault_y_account),
+            (config, config_account),
+            (token_program, token_program_account),
+            (system_program, system_program_account),
+        ],
+    );
+    assert!(matches!(result.program_result, ProgramResult::Success))
+}
