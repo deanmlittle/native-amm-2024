@@ -42,7 +42,14 @@ pub struct Deposit {
     pub expiration: i64,
 }
 
-pub type Withdraw = Deposit;
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq, Pod, Zeroable, TryFromBytes)]
+pub struct Withdraw {
+    pub amount: u64, // Amount of LP token to burn
+    pub min_x: u64,  // Min amount of X we are willing to withdraw
+    pub min_y: u64,  // Min amount of Y we are willing to withdraw
+    pub expiration: i64,
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Pod, Zeroable, TryFromBytes)]

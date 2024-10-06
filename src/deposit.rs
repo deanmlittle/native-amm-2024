@@ -1,10 +1,10 @@
-use crate::{Deposit, Swap};
+use crate::{utils::check_eq_program_derived_address_with_bump, Config, Deposit};
 use constant_product_curve::xy_deposit_amounts_from_l;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
+    account_info::AccountInfo, clock::Clock, sysvar::Sysvar, entrypoint::ProgramResult,
+    program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, program::{invoke, invoke_signed},
 };
-use solana_sdk::{program::invoke_signed, program_pack::Pack};
-use spl_token::instruction::{mint_to, mint_to_checked, transfer_checked};
+use spl_token::{instruction::{mint_to_checked, transfer_checked}, state::Mint};
 
 pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     let Deposit {
@@ -12,7 +12,10 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         max_x,
         max_y,
         expiration,
-    } = Swap::try_from(data)?;
+    } = Deposit::try_from(data)?;
+
+    // Expiration check
+    assert!(Clock::get()?.unix_timestamp <= expiration);
 
     let [user, mint_x, mint_y, mint_lp, user_x, user_y, user_lp, vault_x, vault_y, config, token_program, _system_program] =
         accounts
@@ -32,19 +35,14 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
 
     // Check LP mint
     check_eq_program_derived_address_with_bump(
-        &[
-            b"lp",
-            config.key.as_ref(),
-            &[config_account.lp_bump],
-        ],
+        &[config.key.as_ref(), &[config_account.lp_bump]],
         &crate::ID,
-        lp_mint.key,
+        mint_lp.key,
     )?;
-    
+
     // Check vaults
     check_eq_program_derived_address_with_bump(
         &[
-            b"vault",
             config_account.mint_x.as_ref(),
             config.key.as_ref(),
             &[config_account.x_bump],
@@ -55,7 +53,6 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
 
     check_eq_program_derived_address_with_bump(
         &[
-            b"vault",
             config_account.mint_y.as_ref(),
             config.key.as_ref(),
             &[config_account.y_bump],
@@ -68,7 +65,14 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     let vault_y_account = spl_token::state::Account::unpack(&vault_y.try_borrow_data()?)?;
     let mint_lp_account = spl_token::state::Mint::unpack(&mint_lp.try_borrow_data()?)?;
 
-    let (x, y) = xy_deposit_amounts_from_l(vault_x_account.amount , vault_y_account.amount, mint_lp_account.supply, amount, 1_000_000_000).map_err(|_| ProgramError::ArithmeticOverflow)?;
+    let (x, y) = xy_deposit_amounts_from_l(
+        vault_x_account.amount,
+        vault_y_account.amount,
+        mint_lp_account.supply,
+        amount,
+        1_000_000_000,
+    )
+    .map_err(|_| ProgramError::ArithmeticOverflow)?;
 
     // Slippage check
     assert!(x <= max_x);
@@ -77,64 +81,88 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     // Get decimals
     let mint_x_decimals = Mint::unpack(mint_x.data.borrow().as_ref())?.decimals;
     let mint_y_decimals = Mint::unpack(mint_y.data.borrow().as_ref())?.decimals;
-    let mint_lp_decimals = Mint::unpack(mint_lp.data.borrow().as_ref())?.decimals;
 
     // Transfer the funds from the users's token X account to the vault
-    invoke(
-        &transfer_checked(
-            token_program,
-            user_x.key,
-            mint_x.key,
-            vault_x.key,
-            user.key,
-            &[],
-            x,
-            mint_x_decimals,
-        )?,
-        &[
-            user_x.clone(),
-            mint_x.clone(),
-            vault_x.clone(),
-            user.clone(),
-        ],
+    deposit(
+        token_program.key,
+        user_x,
+        mint_x,
+        vault_x,
+        user,
+        x,
+        mint_x_decimals,
     )?;
 
-    // Transfer the funds from the users's token Y account to the vault
-    invoke(
-        &transfer_checked(
-            token_program.key,
-            user_y.key,
-            mint_y.key,
-            vault_y.key,
-            user.key,
-            &[],
-            y,
-            mint_y_decimals,
-        )?,
-        &[
-            user_y.clone(),
-            mint_y.clone(),
-            vault_y.clone(),
-            user.clone(),
-        ],
+    deposit(
+        token_program.key,
+        user_y,
+        mint_y,
+        vault_y,
+        user,
+        y,
+        mint_y_decimals,
     )?;
 
     // Mint LP tokens
+    mint(
+        token_program.key,
+        mint_lp,
+        user_lp,
+        config,
+        amount,
+        mint_lp_account.decimals,
+        config_account.lp_bump,
+    )
+}
+
+#[inline]
+pub fn deposit<'a>(
+    token_program: &Pubkey,
+    user_from: &AccountInfo<'a>,
+    mint: &AccountInfo<'a>,
+    vault: &AccountInfo<'a>,
+    user: &AccountInfo<'a>,
+    amount: u64,
+    decimals: u8,
+) -> ProgramResult {
+    // Transfer the funds from the maker's token account to the vault
+    invoke(
+        &transfer_checked(
+            token_program,
+            user_from.key,
+            mint.key,
+            vault.key,
+            user.key,
+            &[],
+            amount,
+            decimals,
+        )?,
+        &[user_from.clone(), mint.clone(), vault.clone(), user.clone()],
+    )
+}
+
+#[inline]
+pub fn mint<'a>(
+    token_program: &Pubkey,
+    mint: &AccountInfo<'a>,
+    to: &AccountInfo<'a>,
+    authority: &AccountInfo<'a>,
+    amount: u64,
+    decimals: u8,
+    bump: u8,
+) -> ProgramResult {
+    // Transfer the funds from the maker's token account to the vault
     invoke_signed(
         &mint_to_checked(
-            token_program.key,
-            mint_lp.key, 
-            user_lp.key, 
-            config.key, 
-            &[], 
-            amount, 
-            mint_lp_decimals
-        ),
-        &[
-            mint_lp.clone(),
-            user_lp.clone(),
-            config.clone(),
-        ],
-        &[&[b"lp_mint", config.key.as_ref(), &[config.lp_bump]]]
+            token_program,
+            mint.key,
+            to.key,
+            authority.key,
+            &[],
+            amount,
+            decimals,
+        )?,
+        &[mint.clone(), to.clone(), authority.clone()],
+        &[&[authority.key.as_ref(), &[bump]]],
     )
 }

@@ -11,13 +11,14 @@ pub fn check_eq_program_derived_address(
     Ok(assert!(derived_address.eq(address)))
 }
 
+#[inline]
+pub fn check_eq_program_derived_address_with_bump(
     seeds: &[&[u8]],
     program_id: &Pubkey,
     address: &Pubkey,
 ) -> Result<(), ProgramError> {
-    let derived_address = Pubkey::create_program_address(seeds, program_id)?;
-    assert!(derived_address.eq(address));
-    Ok(())
+    let (derived_address, _) = Pubkey::find_program_address(seeds, program_id);
+    Ok(assert!(derived_address.eq(address)))
 }
 
 #[inline]

@@ -34,22 +34,25 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     )?;
 
     let x_bump = check_eq_program_derived_address_and_get_bump(
-        &[b"vault", mint_x.key.as_ref(), config.key.as_ref()],
+        &[mint_x.key.as_ref(), config.key.as_ref()],
         &crate::ID,
         vault_x.key,
     )?;
 
     let y_bump = check_eq_program_derived_address_and_get_bump(
-        &[b"vault", mint_y.key.as_ref(), config.key.as_ref()],
+        &[mint_y.key.as_ref(), config.key.as_ref()],
         &crate::ID,
         vault_x.key,
     )?;
 
     let lp_bump = check_eq_program_derived_address_and_get_bump(
-        &[b"lp_mint", config.key.as_ref()],
+        &[config.key.as_ref()],
         &crate::ID,
         mint_lp.key,
     )?;
+
+    // Check that the fee is less than 100%
+    assert!(fee < 10_000);
 
     // Check Mint and Token Program are valid
     spl_token::state::Mint::unpack(&mint_x.try_borrow_data()?);
@@ -106,12 +109,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             &crate::ID,
         ),
         &[initializer.clone(), vault_x.clone()],
-        &[&[
-            b"vault",
-            mint_x.key.as_ref(),
-            config.key.as_ref(),
-            &[x_bump],
-        ]],
+        &[&[mint_x.key.as_ref(), config.key.as_ref(), &[x_bump]]],
     )?;
 
     vault_x.assign(&token_program.key);
@@ -131,12 +129,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             &crate::ID,
         ),
         &[initializer.clone(), vault_y.clone()],
-        &[&[
-            b"vault",
-            mint_x.key.as_ref(),
-            config.key.as_ref(),
-            &[y_bump],
-        ]],
+        &[&[mint_x.key.as_ref(), config.key.as_ref(), &[y_bump]]],
     )?;
 
     vault_y.assign(&token_program.key);
@@ -159,7 +152,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             &crate::ID,
         ),
         &[initializer.clone(), mint_lp.clone()],
-        &[&[b"lp_mint", config.key.as_ref(), &[lp_bump]]],
+        &[&[config.key.as_ref(), &[lp_bump]]],
     )?;
 
     mint_lp.assign(&token_program.key);
