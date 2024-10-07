@@ -111,8 +111,8 @@ pub fn delta_y_from_x_swap_amount(x: u64, y: u64, a: u64) -> Result<u64, CurveEr
 #[inline]
 pub fn delta_x_from_y_swap_amount_with_fee(x: u64, y: u64, a: u64, fee: u16) -> Result<(u64, u64), CurveError> {
     let raw_amount = x.checked_sub(x2_from_y_swap_amount(x,y,a)?).ok_or(CurveError::Overflow)?;
-    let fee = raw_amount.checked_mul(fee.into()).ok_or(CurveError::Overflow)?.saturating_div(10_000);
-    Ok((raw_amount - fee, fee))
+    let amount = raw_amount.checked_mul((10_000 - fee).into()).ok_or(CurveError::Overflow)?.saturating_div(10_000);
+    Ok((amount, raw_amount - amount))
 }
 
 // Calculate difference in Y from swapping in X
@@ -133,5 +133,12 @@ mod tests {
         let (amount_out, fee) = delta_y_from_x_swap_amount_with_fee(25, 24, 5, 0).unwrap();
         assert_eq!(amount_out, 4);
         assert_eq!(fee, 0);
+    }
+
+    #[test]
+    fn swap_with_fee() {
+        let (amount_out, fee) = delta_y_from_x_swap_amount_with_fee(20, 30, 5, 100).unwrap();
+        assert_eq!(amount_out, 5);
+        assert_eq!(fee, 1);
     }
 }
