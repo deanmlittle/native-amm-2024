@@ -7,7 +7,6 @@ use solana_program::{
     program::{invoke, invoke_signed},
     system_instruction::create_account,
     sysvar::Sysvar,
-    msg
 };
 // use solana_invoke::{invoke, invoke_signed};
 use spl_token::solana_program::program_pack::Pack;
@@ -66,8 +65,6 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     let config_space = core::mem::size_of::<Config>();
     let config_rent = Rent::get()?.minimum_balance(config_space);
 
-    msg!("Got here");
-
     // Create the Config Account
     invoke_signed(
         &create_account(
@@ -83,9 +80,10 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
 
     config.assign(&crate::ID);
 
+    
     let mut config_data: Config =
-        *bytemuck::try_from_bytes_mut::<Config>(*config.data.borrow_mut())
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+    *bytemuck::try_from_bytes_mut::<Config>(*config.data.borrow_mut())
+    .map_err(|_| ProgramError::InvalidAccountData)?;
     config_data.clone_from(&Config {
         seed,
         authority,
@@ -100,47 +98,45 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         padding: [0; 1],
     });
 
-    // Create the token_account_x
-    // let token_space = core::mem::size_of::<spl_token::state::Account>();
-    // let token_rent = Rent::get()?.minimum_balance(token_space);
+    let token_space = spl_token::state::Account::LEN;
+    let token_rent = Rent::get()?.minimum_balance(token_space);
 
-    // invoke_signed(
-    //     &create_account(
-    //         initializer.key,
-    //         vault_x.key,
-    //         token_rent,
-    //         token_space as u64,
-    //         &spl_token::ID,    
-    //     ),
-    //     &[initializer.clone(), vault_x.clone()],
-    //     &[&[mint_x.key.as_ref(), config.key.as_ref(), &[x_bump]]],
-    // )?;
+    invoke_signed(
+        &create_account(
+            initializer.key,
+            vault_x.key,
+            token_rent,
+            token_space as u64,
+            &spl_token::ID,    
+        ),
+        &[initializer.clone(), vault_x.clone()],
+        &[&[mint_x.key.as_ref(), config.key.as_ref(), &[x_bump]]],
+    )?;
 
-    // invoke(
-    //     &initialize_account3(token_program.key, vault_x.key, mint_x.key, config.key)?,
-    //     &[vault_x.clone(), mint_x.clone()],
-    // )?;
+    invoke(
+        &initialize_account3(token_program.key, vault_x.key, mint_x.key, config.key)?,
+        &[vault_x.clone(), mint_x.clone()],
+    )?;
 
-    // Create the token_account_y
-    // invoke_signed(
-    //     &create_account(
-    //         initializer.key,
-    //         vault_y.key,
-    //         token_rent,
-    //         token_space as u64,
-    //         &spl_token::ID,
-    //     ),
-    //     &[initializer.clone(), vault_y.clone()],
-    //     &[&[mint_y.key.as_ref(), config.key.as_ref(), &[y_bump]]],
-    // )?;
+    invoke_signed(
+        &create_account(
+            initializer.key,
+            vault_y.key,
+            token_rent,
+            token_space as u64,
+            &spl_token::ID,
+        ),
+        &[initializer.clone(), vault_y.clone()],
+        &[&[mint_y.key.as_ref(), config.key.as_ref(), &[y_bump]]],
+    )?;
 
-    // invoke(
-    //     &initialize_account3(token_program.key, vault_y.key, mint_y.key, config.key)?,
-    //     &[vault_y.clone(), mint_y.clone()],
-    // )?;
+    invoke(
+        &initialize_account3(token_program.key, vault_y.key, mint_y.key, config.key)?,
+        &[vault_y.clone(), mint_y.clone()],
+    )?;
 
     // Create the lp_mint
-    let mint_space = core::mem::size_of::<spl_token::state::Mint>();
+    let mint_space = spl_token::state::Mint::LEN;
     let mint_rent = Rent::get()?.minimum_balance(mint_space);
 
     invoke_signed(
