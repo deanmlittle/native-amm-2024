@@ -121,3 +121,17 @@ pub fn delta_x_from_y_swap_amount_with_fee(x: u64, y: u64, a: u64, fee: u16) -> 
 pub fn delta_y_from_x_swap_amount_with_fee(x: u64, y: u64, a: u64, fee: u16) -> Result<(u64, u64), CurveError> {
     delta_x_from_y_swap_amount_with_fee(y,x,a, fee)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::delta_y_from_x_swap_amount_with_fee;
+    #[test]
+    fn swap() {
+        let (amount_out, fee) = delta_y_from_x_swap_amount_with_fee(20, 30, 5, 0).unwrap();
+        assert_eq!(amount_out, 6);
+        assert_eq!(fee, 0);
+        let (amount_out, fee) = delta_y_from_x_swap_amount_with_fee(25, 24, 5, 0).unwrap();
+        assert_eq!(amount_out, 4);
+        assert_eq!(fee, 0);
+    }
+}
