@@ -111,7 +111,7 @@ pub fn delta_y_from_x_swap_amount(x: u64, y: u64, a: u64) -> Result<u64, CurveEr
 #[inline]
 pub fn delta_x_from_y_swap_amount_with_fee(x: u64, y: u64, a: u64, fee: u16) -> Result<(u64, u64), CurveError> {
     let raw_amount = x.checked_sub(x2_from_y_swap_amount(x,y,a)?).ok_or(CurveError::Overflow)?;
-    let fee = raw_amount.checked_mul(fee.into()).ok_or(CurveError::Overflow)?.saturating_div(100);
+    let fee = raw_amount.checked_mul(fee.into()).ok_or(CurveError::Overflow)?.saturating_div(10_000);
     Ok((raw_amount - fee, fee))
 }
 

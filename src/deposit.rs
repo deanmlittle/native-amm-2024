@@ -9,6 +9,7 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
     sysvar::Sysvar,
+    msg,
 };
 use spl_token::{
     instruction::{mint_to_checked, transfer_checked},
@@ -73,18 +74,27 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         vault_y.key,
     )?;
 
+    msg!("Checked all PDAs and Bumps");
+
     let vault_x_account = spl_token::state::Account::unpack(&vault_x.try_borrow_data()?)?;
     let vault_y_account = spl_token::state::Account::unpack(&vault_y.try_borrow_data()?)?;
     let mint_lp_account = spl_token::state::Mint::unpack(&mint_lp.try_borrow_data()?)?;
 
-    let (x, y) = xy_deposit_amounts_from_l(
-        vault_x_account.amount,
-        vault_y_account.amount,
-        mint_lp_account.supply,
-        amount,
-        1_000_000_000,
-    )
-    .map_err(|_| ProgramError::ArithmeticOverflow)?;
+    let (x,y) = match mint_lp_account.supply == 0 && vault_x_account.amount == 0 && vault_y_account.amount == 0 {
+        true => (max_x, max_y),
+        false => {
+            xy_deposit_amounts_from_l(
+                vault_x_account.amount,
+                vault_y_account.amount,
+                mint_lp_account.supply,
+                amount,
+                1_000_000_000,
+            )
+            .map_err(|_| ProgramError::ArithmeticOverflow)?
+        }
+    };
+
+    msg!("Calculated x and y");
 
     // Slippage check
     assert!(x <= max_x);
@@ -105,6 +115,8 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         mint_x_decimals,
     )?;
 
+    msg!("Deposited x");
+
     deposit(
         token_program.key,
         user_y,
@@ -115,6 +127,8 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         mint_y_decimals,
     )?;
 
+    msg!("Deposited y");
+
     // Mint LP tokens
     mint(
         token_program.key,
@@ -123,8 +137,12 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         config,
         amount,
         mint_lp_account.decimals,
-        config_account.lp_bump,
-    )
+        &[b"config", config_account.seed.to_le_bytes().as_ref(), &[config_account.config_bump]],
+    )?;
+
+    msg!("Minted LP tokens");
+
+    Ok(())
 }
 
 #[inline]
@@ -161,7 +179,7 @@ pub fn mint<'a>(
     authority: &AccountInfo<'a>,
     amount: u64,
     decimals: u8,
-    bump: u8,
+    seeds: &[&[u8]],
 ) -> ProgramResult {
     // Transfer the funds from the maker's token account to the vault
     invoke_signed(
@@ -175,6 +193,6 @@ pub fn mint<'a>(
             decimals,
         )?,
         &[mint.clone(), to.clone(), authority.clone()],
-        &[&[authority.key.as_ref(), &[bump]]],
+        &[seeds],
     )
 }

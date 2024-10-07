@@ -11,6 +11,7 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
     sysvar::Sysvar,
+    msg
 };
 use spl_token::{
     instruction::transfer_checked,
@@ -63,6 +64,8 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     check_eq_program_derived_address_with_bump(seeds_x, &crate::ID, vault_x.key)?;
     check_eq_program_derived_address_with_bump(seeds_y, &crate::ID, vault_y.key)?;
 
+    msg!("Checked vaults");
+
     // Unpack our vault accounts
     let vault_x_account = spl_token::state::Account::unpack(vault_x.data.borrow().as_ref())?;
     let vault_y_account = spl_token::state::Account::unpack(vault_y.data.borrow().as_ref())?;
@@ -79,16 +82,22 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         .ok_or(ProgramError::InvalidAccountData)?,
     );
 
+    msg!("Vault X Amount: {:?}", vault_x_account.amount);
+    msg!("Vault Y Amount: {:?}", vault_y_account.amount);
+
     // Execute our swap
     if is_x {
         // Get amount out less fees
-        let (amount_out, _) = delta_y_from_x_swap_amount_with_fee(
+        let (amount_out, fee) = delta_y_from_x_swap_amount_with_fee(
             vault_x_account.amount,
             vault_y_account.amount,
             amount,
             config_account.fee,
         )
         .map_err(|_| ProgramError::ArithmeticOverflow)?;
+
+        msg!("Received amount out: {}", amount_out);
+        msg!("Fee: {}", fee);
 
         // Slippage check
         assert!(amount_out >= min);
@@ -103,6 +112,8 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             mint_x_decimals,
         )?;
 
+        msg!("Deposited");
+
         withdraw(
             token_program.key,
             vault_y,
@@ -112,16 +123,23 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             amount_out,
             mint_y_decimals,
             seeds_y,
-        )
+        )?;
+
+        msg!("Withdrew");
+
+        Ok(())
     } else {
         // Get amount out less fees
-        let (amount_out, _) = delta_x_from_y_swap_amount_with_fee(
+        let (amount_out, fee) = delta_x_from_y_swap_amount_with_fee(
             vault_x_account.amount,
             vault_y_account.amount,
             amount,
             config_account.fee,
         )
         .map_err(|_| ProgramError::ArithmeticOverflow)?;
+
+        msg!("Received amount out: {}", amount_out);
+        msg!("Fee: {}", fee);
 
         // Slippage check
         assert!(amount_out >= min);
@@ -136,6 +154,9 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             amount,
             mint_y_decimals,
         )?;
+
+        msg!("Deposited");
+
         // Withdraw
         withdraw(
             token_program.key,
@@ -146,7 +167,11 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             amount_out,
             mint_x_decimals,
             seeds_x,
-        )
+        )?;
+
+        msg!("Withdrew");
+
+        Ok(())
     }
 }
 

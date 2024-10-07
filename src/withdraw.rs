@@ -9,6 +9,7 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
     sysvar::Sysvar,
+    msg
 };
 use spl_token::{
     instruction::{burn_checked, transfer_checked},
@@ -51,6 +52,8 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         mint_lp.key,
     )?;
 
+    msg!("Checked LP mint");
+
     // Check vaults
     check_eq_program_derived_address_with_bump(
         &[
@@ -62,6 +65,8 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         vault_x.key,
     )?;
 
+    msg!("Checked vault X");
+
     check_eq_program_derived_address_with_bump(
         &[
             config_account.mint_y.as_ref(),
@@ -71,6 +76,8 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         &crate::ID,
         vault_y.key,
     )?;
+
+    msg!("Checked vault Y");
 
     let vault_x_account = spl_token::state::Account::unpack(&vault_x.try_borrow_data()?)?;
     let vault_y_account = spl_token::state::Account::unpack(&vault_y.try_borrow_data()?)?;
@@ -84,6 +91,11 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         1_000_000_000,
     )
     .map_err(|_| ProgramError::ArithmeticOverflow)?;
+
+    msg!("Calculated withdraw amounts: X: {} Y: {}", x, y);
+
+    msg!("Vault X amount: {}", vault_x_account.amount);
+    msg!("Vault Y amount: {}", vault_y_account.amount);
 
     // Slippage check
     assert!(x >= min_x);
@@ -101,9 +113,11 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         vault_x,
         config,
         x,
-        config_account.x_bump,
         mint_x_decimals,
+        &[b"config", config_account.seed.to_le_bytes().as_ref(), &[config_account.config_bump]],
     )?;
+
+    msg!("Withdrew X");
 
     withdraw(
         token_program.key,
@@ -112,9 +126,12 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         vault_y,
         config,
         y,
-        config_account.y_bump,
         mint_y_decimals,
+        &[b"config", config_account.seed.to_le_bytes().as_ref(), &[config_account.config_bump]],
+
     )?;
+
+    msg!("Withdrew Y");
 
     // Mint LP tokens
     burn(
@@ -124,39 +141,43 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
         user,
         amount,
         mint_lp_account.decimals,
-    )
+    )?;
+
+    msg!("Burned LP tokens");
+
+    Ok(())
 }
 
 #[inline]
 pub fn withdraw<'a>(
     token_program: &Pubkey,
-    user_from: &AccountInfo<'a>,
+    user: &AccountInfo<'a>,
     mint: &AccountInfo<'a>,
     vault: &AccountInfo<'a>,
     authority: &AccountInfo<'a>,
     amount: u64,
     decimals: u8,
-    bump: u8,
+    seeds: &[&[u8]],
 ) -> ProgramResult {
     // Transfer the funds from the maker's token account to the vault
     invoke_signed(
         &transfer_checked(
             token_program,
-            user_from.key,
-            mint.key,
             vault.key,
+            mint.key,
+            user.key,
             authority.key,
             &[],
             amount,
             decimals,
         )?,
         &[
-            user_from.clone(),
+            user.clone(),
             mint.clone(),
             vault.clone(),
             authority.clone(),
         ],
-        &[&[authority.key.as_ref(), mint.key.as_ref(), &[bump]]],
+        &[seeds],
     )
 }
 
