@@ -122,7 +122,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             config,
             amount_out,
             mint_y_decimals,
-            seeds_y,
+            &[b"config", config_account.seed.to_le_bytes().as_ref(), &[config_account.config_bump]],
         )?;
 
         msg!("Withdrew");
@@ -166,7 +166,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             config,
             amount_out,
             mint_x_decimals,
-            seeds_x,
+            &[b"config", config_account.seed.to_le_bytes().as_ref(), &[config_account.config_bump]],
         )?;
 
         msg!("Withdrew");
