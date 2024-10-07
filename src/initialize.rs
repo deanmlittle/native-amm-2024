@@ -101,8 +101,8 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     });
 
     // Create the token_account_x
-    let token_space = core::mem::size_of::<spl_token::state::Account>();
-    let token_rent = Rent::get()?.minimum_balance(token_space);
+    // let token_space = core::mem::size_of::<spl_token::state::Account>();
+    // let token_rent = Rent::get()?.minimum_balance(token_space);
 
     // invoke_signed(
     //     &create_account(
@@ -110,7 +110,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     //         vault_x.key,
     //         token_rent,
     //         token_space as u64,
-    //         &crate::ID,
+    //         &spl_token::ID,    
     //     ),
     //     &[initializer.clone(), vault_x.clone()],
     //     &[&[mint_x.key.as_ref(), config.key.as_ref(), &[x_bump]]],
@@ -128,7 +128,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     //         vault_y.key,
     //         token_rent,
     //         token_space as u64,
-    //         &crate::ID,
+    //         &spl_token::ID,
     //     ),
     //     &[initializer.clone(), vault_y.clone()],
     //     &[&[mint_y.key.as_ref(), config.key.as_ref(), &[y_bump]]],
@@ -141,7 +141,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
 
     // Create the lp_mint
     let mint_space = core::mem::size_of::<spl_token::state::Mint>();
-    let mint_rent = Rent::get()?.minimum_balance(config_space);
+    let mint_rent = Rent::get()?.minimum_balance(mint_space);
 
     invoke_signed(
         &create_account(
@@ -149,7 +149,7 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
             mint_lp.key,
             mint_rent,
             mint_space as u64,
-            &crate::ID,
+            &spl_token::ID,
         ),
         &[initializer.clone(), mint_lp.clone()],
         &[&[config.key.as_ref(), &[lp_bump]]],

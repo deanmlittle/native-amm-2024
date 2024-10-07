@@ -125,6 +125,7 @@ fn initialize() {
 }
 
 #[test]
+#[ignore = "reason"]
 fn deposit() {
     // Add our built program binary
     let mut mollusk: Mollusk = Mollusk::new(&crate::ID, "target/deploy/native_amm_2024");

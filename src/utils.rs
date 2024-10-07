@@ -17,7 +17,7 @@ pub fn check_eq_program_derived_address_with_bump(
     program_id: &Pubkey,
     address: &Pubkey,
 ) -> Result<(), ProgramError> {
-    let (derived_address, _) = Pubkey::find_program_address(seeds, program_id);
+    let derived_address = Pubkey::create_program_address(seeds, program_id)?;
     Ok(assert!(derived_address.eq(address)))
 }
 
