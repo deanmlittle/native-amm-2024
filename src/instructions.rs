@@ -1,6 +1,8 @@
 use bytemuck::{Pod, Zeroable};
 use native_amm_macros::TryFromBytes;
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+
+#[derive(Clone)]
 pub enum AMMInstructions {
     Initialize,
     Deposit,
@@ -21,6 +23,15 @@ impl TryFrom<&u8> for AMMInstructions {
             4 => Ok(Self::Lock),
             _ => Err(ProgramError::InvalidInstructionData),
         }
+    }
+}
+
+impl AMMInstructions {
+    pub fn serialize<T: Pod>(&self, ix: T) -> Vec<u8> {
+        [
+            &[self.clone() as u8],
+            bytemuck::bytes_of::<T>(&ix)
+        ].concat()
     }
 }
 

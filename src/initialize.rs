@@ -2,16 +2,18 @@ use crate::{utils::check_eq_program_derived_address_and_get_bump, Config, Initia
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    program::{invoke, invoke_signed},
     program_error::ProgramError,
-    program_pack::Pack,
     rent::Rent,
+    program::{invoke, invoke_signed},
     system_instruction::create_account,
     sysvar::Sysvar,
+    msg
 };
+// use solana_invoke::{invoke, invoke_signed};
+use spl_token::solana_program::program_pack::Pack;
 use spl_token::instruction::{initialize_account3, initialize_mint2};
 
-/// todo
+/// Initialize an AMM and seed with initial liquidity
 pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     let Initialize {
         seed,
@@ -55,14 +57,16 @@ pub fn process(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
     assert!(fee < 10_000);
 
     // Check Mint and Token Program are valid
-    spl_token::state::Mint::unpack(&mint_x.try_borrow_data()?);
-    spl_token::state::Mint::unpack(&mint_y.try_borrow_data()?);
+    let _ = spl_token::state::Mint::unpack(&mint_x.try_borrow_data()?);
+    let _ = spl_token::state::Mint::unpack(&mint_y.try_borrow_data()?);
 
     assert_eq!(spl_token::ID, *token_program.key);
 
     // Initialize the Config Account
     let config_space = core::mem::size_of::<Config>();
     let config_rent = Rent::get()?.minimum_balance(config_space);
+
+    msg!("Got here");
 
     // Create the Config Account
     invoke_signed(

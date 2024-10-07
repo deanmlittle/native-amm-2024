@@ -1,4 +1,4 @@
-use crate::{Config, Deposit, Initialize};
+use crate::{AMMInstructions, Config, Deposit, Initialize};
 use bytemuck::bytes_of;
 use core::mem;
 use mollusk_svm::{
@@ -21,7 +21,7 @@ fn initialize() {
     let seed: u64 = 1337;
 
     // Programs
-    mollusk.add_program(&spl_token::ID, "src/tests/spl_token-3.5.0");
+    mollusk.add_program(&spl_token::ID, "src/tests/spl_token");
     let (token_program, token_program_account) = (spl_token::ID, program_account(&spl_token::ID));
     let (system_program, system_program_account) = program::system_program();
 
@@ -83,20 +83,22 @@ fn initialize() {
     // Create our instruction
     let instruction = Instruction::new_with_bytes(
         crate::ID,
-        bytes_of::<Initialize>(&Initialize {
-            seed,
-            fee: 100,
-            authority: crate::ID,
-            padding: [0; 6],
-        }),
+        &AMMInstructions::Initialize.serialize::<Initialize>(
+                Initialize {
+                seed,
+                fee: 100,
+                authority: initializer,
+                padding: [0; 6],
+            }
+        ),
         vec![
             AccountMeta::new(initializer, true),
             AccountMeta::new_readonly(mint_x, false),
             AccountMeta::new_readonly(mint_y, false),
-            AccountMeta::new_readonly(mint_lp, false),
-            AccountMeta::new_readonly(vault_x, false),
-            AccountMeta::new_readonly(vault_y, false),
-            AccountMeta::new_readonly(config, false),
+            AccountMeta::new(mint_lp, false),
+            AccountMeta::new(vault_x, false),
+            AccountMeta::new(vault_y, false),
+            AccountMeta::new(config, false),
             AccountMeta::new_readonly(token_program, false),
             AccountMeta::new_readonly(system_program, false),
         ],
