@@ -14,7 +14,6 @@ use solana_program::{
 use solana_sdk::account::{AccountSharedData, WritableAccount};
 
 #[test]
-#[ignore = "reason"]
 fn initialize() {
     // Add our built program binary
     let mut mollusk: Mollusk = Mollusk::new(&crate::ID, "target/deploy/native_amm_2024");
@@ -127,7 +126,6 @@ fn initialize() {
 }
 
 #[test]
-#[ignore = "reason"]
 fn deposit() {
     // Add our built program binary
     let mut mollusk: Mollusk = Mollusk::new(&crate::ID, "target/deploy/native_amm_2024");
@@ -404,7 +402,6 @@ fn deposit() {
 }
 
 #[test]
-#[ignore = "reason"]
 fn withdraw() {
     // Add our built program binary
     let mut mollusk: Mollusk = Mollusk::new(&crate::ID, "target/deploy/native_amm_2024");
